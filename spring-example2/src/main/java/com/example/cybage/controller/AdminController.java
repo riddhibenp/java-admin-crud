@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.example.cybage.service.AdminServiceImpl;
 
@@ -26,41 +29,67 @@ import com.example.cybage.entity.Course;
 import com.example.cybage.entity.Video;
 
 @RestController
+@CrossOrigin
 public class AdminController {
 
 	@Autowired
 	private AdminServiceImpl asi;
+	
+	List<Category> listOfCategories ;
+	List<Course> listOfCourse;
+	List<Video> listOfVideo ;
 
 	// show all categories
-	@GetMapping("/category")
+	@GetMapping("/category/getAllCategories")
 	public ResponseEntity<List<Category>> AllCategory() {
 
-		List<Category> li = asi.getAllCategory();
-		for (Category l : li) {
+		 listOfCategories = asi.getAllCategory();
+		for (Category l :  listOfCategories) {
 			System.out.println(l);
 		}
-		return ResponseEntity.status(HttpStatus.FOUND).body(li);
+		return ResponseEntity.status(HttpStatus.OK).body( listOfCategories);
 	}
 
 	// show category by id
 	@GetMapping(value = "/category/{id}", produces = { MediaType.APPLICATION_JSON_VALUE })
 	public Optional<Category> CategoryById(@PathVariable int id) {
-		System.out.println(id);
+		 Optional<Category> ctr = listOfCategories.stream().filter(u -> u.getCategoryId() == id).findFirst();
+		 if (!ctr.isPresent()) {
+	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "given category not found in database");
+	        }
 		return asi.getCategoryById(id);
 
 	}
 
 	// add category
-	@PostMapping("/category")
-	public boolean addCategory(@RequestBody Category c) {
-		return asi.addCategory(c);
+	@PostMapping("/category/add")
+	@ResponseStatus(code = HttpStatus.CREATED)
+	public String addCategory(@RequestBody Category c) {
+		 
+		 if(c.getCategoryId()==0)
+			{
+			 asi.addCategory(c);	
+			}
+			else
+			{	
+				asi.updateCategory(c);
+			}
+			return "redirect:/getAllCategories";
 
 	}
 
 	// delete category by id
 	@DeleteMapping("/category/{id}")
-	public void deleteCategory(@PathVariable int id) {
-		asi.deleteCategory(id);
+	public ResponseEntity<String> deleteCategory(@PathVariable int id) {
+		listOfCategories =asi.getAllCategory();
+		
+		boolean isDeleted = listOfCategories .removeIf(u -> u.getCategoryId() == id); // java 8
+		 asi.deleteCategory(id);
+        if (!isDeleted) {
+            throw new ResponseStatusException(HttpStatus.OK, "given category could not be deleted as it is not present in db");
+        }
+        return ResponseEntity.status(HttpStatus.OK).body("Category deleted !!!");
+
 	}
 
 	// update category by id
@@ -72,34 +101,57 @@ public class AdminController {
 	}
 
 	// show all courses
-	@GetMapping("/course")
+	@GetMapping("/course/getAllCourses")
 	public ResponseEntity<List<Course>> AllCourse() {
-		List<Course> li = asi.getAllCourse();
-		for (Course l : li) {
+		listOfCourse = asi.getAllCourse();
+		for (Course l : listOfCourse) {
 			System.out.println(l);
 		}
-		return ResponseEntity.status(HttpStatus.FOUND).body(li);
+		return ResponseEntity.status(HttpStatus.OK).body(listOfCourse);
 	}
 
 	// show course by id
 	@GetMapping("/course/{id}")
 	public Optional<Course> CourseById(@PathVariable int id) {
-		System.out.println(id);
+		
+		 Optional<Course> ctr = listOfCourse.stream().filter(u -> u.getCourseId() == id).findFirst();
+		 if (!ctr.isPresent()) {
+	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "given course not found in database");
+	        }
 		return asi.getCourseById(id);
 
 	}
 
 	// add course
 	@PostMapping("/course/{cat_id}")
-	public boolean addCourse(@RequestBody Course c, @PathVariable int cat_id) {
-		return asi.addCourse(c, cat_id);
+	@ResponseStatus(code = HttpStatus.CREATED)
+	public String addCourse(@RequestBody Course c, @PathVariable int cat_id) {
+		
+		 if(c.getCourseId()==0)
+			{
+			 asi.addCourse(c, cat_id);	
+			}
+			else
+			{	
+				 asi.updateCourse(c);
+			}
+			return "redirect:/getAllCourses";
 
 	}
 
 	// delete course by id
 	@DeleteMapping("/course/{id}")
-	public void deleteCourse(@PathVariable int id) {
-		asi.deleteCourse(id);
+	public ResponseEntity<String> deleteCourse(@PathVariable int id) {
+		//asi.deleteCourse(id);
+		listOfCourse =asi.getAllCourse();
+		boolean isDeleted = listOfCourse .removeIf(u -> u.getCourseId() == id); // java 8
+		
+        if (!isDeleted) {
+            throw new ResponseStatusException(HttpStatus.OK, "given course could not be deleted as it is not present in db");
+        }
+        
+       asi.deleteCourse(id);
+        return ResponseEntity.status(HttpStatus.OK).body("Course deleted !!!");
 	}
 
 	// update category by id
@@ -111,32 +163,50 @@ public class AdminController {
 	}
 
 	// show all videos
-	@GetMapping("/video")
+	@GetMapping("/video/getAllVideos")
 	public ResponseEntity<List<Video>> AllVideos() {
 		List<Video> li2 = asi.getAllVideo();
 		for (Video l : li2) {
 			System.out.println(l);
 		}
-		return ResponseEntity.status(HttpStatus.FOUND).body(li2);
+		return ResponseEntity.status(HttpStatus.OK).body(li2);
 	}
 
 	// show video by id
 	@GetMapping("/video/{id}")
 	public Optional<Video> VideoById(@PathVariable int id) {
+		 Optional<Video> ctr = listOfVideo.stream().filter(u -> u.getVideoId() == id).findFirst();
+		 if (!ctr.isPresent()) {
+	            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "given video not found in database");
+	        }
 		return asi.getVideoById(id);
-
 	}
 
 	// add video
-	@PostMapping("/video")
-	public boolean addVideo(@RequestBody Video c) {
-		return asi.addVideo(c);
+	@PostMapping("/video/add")
+	@ResponseStatus(code = HttpStatus.CREATED)
+	public String addVideo(@RequestBody Video c) {
+		 if(c.getVideoId()==0)
+			{
+			 asi.addVideo(c);	
+			}
+			else
+			{	
+				asi.updateVideo(c);
+			}
+			return "redirect:/getAllVideos";
 	}
 
 	// delete video
 	@DeleteMapping("/video/{id}")
-	public void deleteVideo(@PathVariable int id) {
-		asi.deleteVideo(id);
+	public ResponseEntity<String> deleteVideo(@PathVariable int id) {
+	boolean isDeleted = listOfVideo .removeIf(u -> u.getVideoId() == id); // java 8
+		
+        if (!isDeleted) {
+            throw new ResponseStatusException(HttpStatus.OK, "given video could not be deleted as it is not present in db");
+        }
+        asi.deleteVideo(id);
+        return ResponseEntity.status(HttpStatus.OK).body("Video deleted !!!");
 	}
 
 	// update video by id
